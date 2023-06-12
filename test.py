@@ -1,7 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-
 def mandelbrot(c, max_iter):
     z = c.copy()
     output = np.zeros(c.shape, dtype=int)
@@ -31,17 +30,32 @@ y = np.linspace(-1.25, 1.25, height)
 X, Y = np.meshgrid(x, y)
 c = X + 1j * Y
 
-# 放大到Mandelbrot集的边缘
+# 上一次迭代的中心位置
+prev_x_center = 0
+prev_y_center = 0
+
+threshold = max_iter * 0.1
+
 while True:
     # 生成分形图像
     image = mandelbrot(c, max_iter)
 
-    # 找到迭代次数最高的像素的位置
-    max_iter_idx = np.unravel_index(np.argmax(image), image.shape)
-    x_center = X[max_iter_idx]
-    y_center = Y[max_iter_idx]
+    high_iter_pixels = np.where(image > threshold)
 
-    # 使用matplotlib显示图像
+    if len(high_iter_pixels[0]) > 0:
+        # 计算高迭代区域对应的空间坐标
+        x_coords = X[high_iter_pixels]
+        y_coords = Y[high_iter_pixels]
+        # 计算高迭代区域的空间坐标的平均值
+        x_center = np.mean(x_coords)
+        y_center = np.mean(y_coords)
+    else:
+        x_center = prev_x_center
+        y_center = prev_y_center
+
+    prev_x_center = x_center
+    prev_y_center = y_center
+
     extent = (np.min(X), np.max(X), np.min(Y), np.max(Y))
     plt.imshow(image, extent=extent, cmap='hot')
     plt.colorbar()
@@ -49,7 +63,7 @@ while True:
     plt.xlabel("Re")
     plt.ylabel("Im")
     plt.draw()
-    plt.pause(0.005)  # 暂停以便观察
+    plt.pause(0.005)
     plt.clf()  # 清除当前图像，以便在下一个循环中绘制新的图像
 
     # 改变范围进行缩放
