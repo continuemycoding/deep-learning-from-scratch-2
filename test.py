@@ -1,6 +1,6 @@
-import matplotlib.pyplot as plt
 import numpy as np
 import colorsys
+import matplotlib.pyplot as plt
 
 def mandelbrot(c, max_iter):
     z = c.copy()
@@ -20,12 +20,10 @@ def color_map(c, max_iter):
     mfactor = 0.5
     v = c ** mfactor / max_iter ** mfactor
     hv = 0.67 - v
-    if hv < 0: hv += 1
-    r, g, b = colorsys.hsv_to_rgb(hv, 1, 1 - (v - 0.1) ** 2 / 0.9 ** 2)
-    r = min(255, round(r * 255))
-    g = min(255, round(g * 255))
-    b = min(255, round(b * 255))
-    return r, g, b
+    hv[hv < 0] += 1
+    rgb = np.array([colorsys.hsv_to_rgb(hv_val, 1, 1 - (v_val - 0.1) ** 2 / 0.9 ** 2) for hv_val, v_val in zip(np.ravel(hv), np.ravel(v))])
+    rgb = np.minimum(255, (rgb * 255).astype(int)).reshape(*c.shape, 3)
+    return rgb
 
 
 width = 256
@@ -40,11 +38,7 @@ c = X + 1j * Y
 
 while True:
     image = mandelbrot(c, max_iter)
-    rgb_image = np.zeros((height, width, 3), dtype=np.uint8)
-
-    for y_pos in range(height):
-        for x_pos in range(width):
-            rgb_image[y_pos, x_pos] = color_map(image[y_pos, x_pos], max_iter)
+    rgb_image = color_map(image, max_iter)
 
     # Find new center
     max_iter_indices = np.unravel_index(np.argmax(image), image.shape)
