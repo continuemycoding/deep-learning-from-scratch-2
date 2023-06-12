@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy.ndimage as ndi
+import colorsys
 
 def mandelbrot(c, max_iter):
     z = c.copy()
@@ -16,68 +16,53 @@ def mandelbrot(c, max_iter):
     return output
 
 
+def color_map(c, max_iter):
+    mfactor = 0.5
+    v = c ** mfactor / max_iter ** mfactor
+    hv = 0.67 - v
+    if hv < 0: hv += 1
+    r, g, b = colorsys.hsv_to_rgb(hv, 1, 1 - (v - 0.1) ** 2 / 0.9 ** 2)
+    r = min(255, round(r * 255))
+    g = min(255, round(g * 255))
+    b = min(255, round(b * 255))
+    return r, g, b
+
+
 width = 256
 height = 256
-
-# 缩放因子
 zoom_factor = 1.05
+max_iter = 500
 
-# 最大迭代次数
-max_iter = 100
-
-# 初始复数网格
 x = np.linspace(-2.0, 0.5, width)
 y = np.linspace(-1.25, 1.25, height)
 X, Y = np.meshgrid(x, y)
 c = X + 1j * Y
 
-# 上一次迭代的中心位置
-prev_x_center = 0
-prev_y_center = 0
-
-threshold = max_iter * 0.1
-
 while True:
-    # 生成分形图像
     image = mandelbrot(c, max_iter)
-    
-    # 二值化图像：高迭代次数设置为1，其它设置为0
-    binary_image = (image > threshold).astype(int)
-    
-    # 找连通区域
-    labeled_image, num_features = ndi.label(binary_image)
-    
-    # 如果存在至少一个连通区域，选择最大的连通区域
-    if num_features > 0:
-        region_sizes = ndi.sum(binary_image, labeled_image, range(num_features + 1))
-        largest_region_label = region_sizes[1:].argmax() + 1
-        coordinates = np.argwhere(labeled_image == largest_region_label)
-        
-        # 计算连通区域的中心点坐标
-        center_pixel = coordinates.mean(axis=0).astype(int)
-        x_center = X[tuple(center_pixel)]
-        y_center = Y[tuple(center_pixel)]
-    else:
-        x_center = prev_x_center
-        y_center = prev_y_center
-    
-    prev_x_center = x_center
-    prev_y_center = y_center
-    
+    rgb_image = np.zeros((height, width, 3), dtype=np.uint8)
+
+    for y_pos in range(height):
+        for x_pos in range(width):
+            rgb_image[y_pos, x_pos] = color_map(image[y_pos, x_pos], max_iter)
+
+    # Find new center
+    max_iter_indices = np.unravel_index(np.argmax(image), image.shape)
+    y_center, x_center = Y[max_iter_indices], X[max_iter_indices]
+
     extent = (np.min(X), np.max(X), np.min(Y), np.max(Y))
-    plt.imshow(image, extent=extent, cmap='hot')
-    plt.colorbar()
+    plt.imshow(rgb_image, extent=extent)
     plt.title("Mandelbrot Set")
     plt.xlabel("Re")
     plt.ylabel("Im")
     plt.draw()
     plt.pause(0.005)
-    plt.clf()  # 清除当前图像，以便在下一个循环中绘制新的图像
-    
-    # 改变范围进行缩放
+    plt.clf()
+
+    # Zoom in
     x_range = (x[-1] - x[0]) / zoom_factor
     y_range = (y[-1] - y[0]) / zoom_factor
-    x = np.linspace(x_center - x_range/2, x_center + x_range/2, width)
-    y = np.linspace(y_center - y_range/2, y_center + y_range/2, height)
+    x = np.linspace(x_center - x_range / 2, x_center + x_range / 2, width)
+    y = np.linspace(y_center - y_range / 2, y_center + y_range / 2, height)
     X, Y = np.meshgrid(x, y)
     c = X + 1j * Y
